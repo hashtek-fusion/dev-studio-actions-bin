@@ -1,0 +1,127 @@
+name: 'DevStudio Orchestrator'
+description: 'Run the DevStudio orchestrator to plan and implement features using Claude Code via AWS Bedrock'
+
+branding:
+  icon: 'zap'
+  color: 'purple'
+
+inputs:
+  run_id:
+    description: 'DevStudio run ID (used for status callbacks)'
+    required: true
+  project_id:
+    description: 'DevStudio project ID'
+    required: true
+  prompt:
+    description: 'Pre-generated implementation prompt from DevStudio'
+    required: true
+  target_branch:
+    description: 'Target branch to create PR against'
+    required: false
+    default: 'main'
+  repo_full_name:
+    description: 'Full repository name (owner/repo)'
+    required: true
+  aws_region:
+    description: 'AWS region for Bedrock'
+    required: false
+    default: 'us-east-1'
+  anthropic_default_sonnet_model:
+    description: 'Bedrock inference profile ID for Sonnet'
+    required: false
+    default: 'us.anthropic.claude-sonnet-4-6'
+  anthropic_default_haiku_model:
+    description: 'Bedrock inference profile ID for Haiku'
+    required: false
+    default: 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+  phase:
+    description: 'Execution phase: plan | execute'
+    required: false
+    default: 'plan'
+  plan_version:
+    description: 'Plan version number (1 = initial, increments on revision cycles)'
+    required: false
+    default: '1'
+  revision_feedback:
+    description: 'Approver feedback injected into re-plan prompt'
+    required: false
+    default: ''
+  devstudio_api_url:
+    description: 'Base URL of the DevStudio API for lifecycle callbacks (e.g. https://api.hashtekfusion.com)'
+    required: true
+  devstudio_webhook_token:
+    description: 'Team-scoped JWT for authenticating API callbacks (Authorization: Bearer)'
+    required: true
+
+outputs:
+  branch_name:
+    description: 'Name of the feature branch pushed by the orchestrator (empty if no changes were made)'
+    value: ${{ steps.run-orchestrator.outputs.branch_name }}
+
+runs:
+  using: 'composite'
+  steps:
+    # ── Install the Claude Code CLI (required by the Agent SDK at runtime) ──────
+    - name: Install Claude Code CLI
+      shell: bash
+      run: |
+        npm install -g @anthropic-ai/claude-code
+        echo "Claude CLI: $(which claude 2>/dev/null || echo 'not found in PATH')"
+
+    # ── Install orchestrator runtime dependencies ────────────────────────────────
+    # The dist/ directory is precompiled and checked in to this repo.
+    # We only need to install node_modules — no clone or build step required.
+    - name: Install orchestrator dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --prefer-offline
+
+    # ── Fetch short-lived Bedrock credentials from DevStudio API ────────────────
+    # The DevStudio API (running in Hashtek's ECS) assumes the Bedrock role and
+    # returns temporary STS credentials scoped to bedrock:InvokeModel only.
+    # This eliminates per-tenant OIDC trust policies — any GitHub org works.
+    - name: Fetch Bedrock credentials
+      id: bedrock-creds
+      shell: bash
+      env:
+        DEVSTUDIO_API_URL: ${{ inputs.devstudio_api_url }}
+        DEVSTUDIO_WEBHOOK_TOKEN: ${{ inputs.devstudio_webhook_token }}
+      run: |
+        RESPONSE=$(curl -sf -X POST \
+          "${DEVSTUDIO_API_URL}/api/auth/internal/bedrock-credentials" \
+          -H "Authorization: Bearer ${DEVSTUDIO_WEBHOOK_TOKEN}" \
+          -H "Content-Type: application/json")
+        echo "aws_access_key_id=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessKeyId'])")" >> "$GITHUB_OUTPUT"
+        echo "aws_secret_access_key=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['secretAccessKey'])")" >> "$GITHUB_OUTPUT"
+        echo "aws_session_token=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['sessionToken'])")" >> "$GITHUB_OUTPUT"
+
+    # ── Run the orchestrator ─────────────────────────────────────────────────────
+    - name: Run DevStudio Orchestrator
+      id: run-orchestrator
+      shell: bash
+      env:
+        DEVSTUDIO_RUN_ID: ${{ inputs.run_id }}
+        DEVSTUDIO_PROJECT_ID: ${{ inputs.project_id }}
+        DEVSTUDIO_PROMPT: ${{ inputs.prompt }}
+        TARGET_BRANCH: ${{ inputs.target_branch }}
+        REPO_FULL_NAME: ${{ inputs.repo_full_name }}
+        AWS_REGION: ${{ inputs.aws_region }}
+        CLAUDE_CODE_USE_BEDROCK: "1"
+        ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ inputs.anthropic_default_sonnet_model }}
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: ${{ inputs.anthropic_default_haiku_model }}
+        DEVSTUDIO_PHASE: ${{ inputs.phase }}
+        DEVSTUDIO_PLAN_VERSION: ${{ inputs.plan_version }}
+        DEVSTUDIO_REVISION_FEEDBACK: ${{ inputs.revision_feedback }}
+        DEVSTUDIO_API_URL: ${{ inputs.devstudio_api_url }}
+        DEVSTUDIO_WEBHOOK_TOKEN: ${{ inputs.devstudio_webhook_token }}
+        AWS_ACCESS_KEY_ID: ${{ steps.bedrock-creds.outputs.aws_access_key_id }}
+        AWS_SECRET_ACCESS_KEY: ${{ steps.bedrock-creds.outputs.aws_secret_access_key }}
+        AWS_SESSION_TOKEN: ${{ steps.bedrock-creds.outputs.aws_session_token }}
+      run: |
+        # Run the orchestrator — it emits structured NDJSON to stdout
+        node "${GITHUB_ACTION_PATH}/dist/main.js" 2>&1 | tee /tmp/orchestrator.log
+
+        # Extract branch name from the final orchestrator_summary line
+        BRANCH_NAME=$(grep '"type":"orchestrator_summary"' /tmp/orchestrator.log | \
+                      python3 -c "import sys,json; data=json.loads(sys.stdin.read()); print(data.get('prBranch',''))" 2>/dev/null || echo "")
+        echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
