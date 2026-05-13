@@ -49,6 +49,7 @@ inputs:
   devstudio_api_url:
     description: 'Base URL of the DevStudio API for lifecycle callbacks (e.g. https://api.hashtekfusion.com)'
     required: true
+    default: 'https://devstudio.hashtekfusion.com'
   devstudio_webhook_token:
     description: 'Team-scoped JWT for authenticating API callbacks (Authorization: Bearer)'
     required: true
