@@ -88,13 +88,63 @@ runs:
         DEVSTUDIO_API_URL: ${{ inputs.devstudio_api_url }}
         DEVSTUDIO_WEBHOOK_TOKEN: ${{ inputs.devstudio_webhook_token }}
       run: |
-        RESPONSE=$(curl -sf -X POST \
-          "${DEVSTUDIO_API_URL}/api/auth/internal/bedrock-credentials" \
-          -H "Authorization: Bearer ${DEVSTUDIO_WEBHOOK_TOKEN}" \
-          -H "Content-Type: application/json")
-        echo "aws_access_key_id=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessKeyId'])")" >> "$GITHUB_OUTPUT"
-        echo "aws_secret_access_key=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['secretAccessKey'])")" >> "$GITHUB_OUTPUT"
-        echo "aws_session_token=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['sessionToken'])")" >> "$GITHUB_OUTPUT"
+        MAX_ATTEMPTS=3
+        ATTEMPT=0
+        SUCCESS=false
+
+        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          ATTEMPT=$((ATTEMPT + 1))
+          echo "Fetching Bedrock credentials (attempt ${ATTEMPT}/${MAX_ATTEMPTS})..."
+
+          HTTP_STATUS=$(curl -sS -o /tmp/bedrock-creds.json -w "%{http_code}" -X POST \
+            "${DEVSTUDIO_API_URL}/api/v1/auth/internal/bedrock-credentials" \
+            -H "Authorization: Bearer ${DEVSTUDIO_WEBHOOK_TOKEN}" \
+            -H "Content-Type: application/json")
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            SUCCESS=true
+            break
+          fi
+
+          echo "::error::Bedrock credentials request failed — HTTP ${HTTP_STATUS}"
+          echo "Response body:"
+          cat /tmp/bedrock-creds.json || true
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Retrying in 2s..."
+            sleep 2
+          fi
+        done
+
+        if [ "$SUCCESS" != "true" ]; then
+          echo "::error::Failed to fetch Bedrock credentials after ${MAX_ATTEMPTS} attempts"
+          exit 1
+        fi
+
+        # Validate all required fields are present in the response
+        python3 - <<'PYEOF'
+        import sys, json
+        with open('/tmp/bedrock-creds.json') as f:
+            data = json.load(f)
+        required = ['accessKeyId', 'secretAccessKey', 'sessionToken']
+        missing = [k for k in required if not data.get(k)]
+        if missing:
+            print(f"::error::Bedrock credentials response missing fields: {missing}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Credentials fetched (keyId: {data['accessKeyId'][:8]}...)")
+        PYEOF
+
+        KEY_ID=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['accessKeyId'])")
+        SECRET=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['secretAccessKey'])")
+        TOKEN=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['sessionToken'])")
+
+        echo "::add-mask::${SECRET}"
+        echo "::add-mask::${TOKEN}"
+
+        echo "aws_access_key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
+        echo "aws_secret_access_key=${SECRET}" >> "$GITHUB_OUTPUT"
+        echo "aws_session_token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+        rm -f /tmp/bedrock-creds.json
 
     # ── Run the orchestrator ─────────────────────────────────────────────────────
     - name: Run DevStudio Orchestrator
