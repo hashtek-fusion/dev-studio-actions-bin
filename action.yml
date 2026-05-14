@@ -88,6 +88,9 @@ runs:
         DEVSTUDIO_API_URL: ${{ inputs.devstudio_api_url }}
         DEVSTUDIO_WEBHOOK_TOKEN: ${{ inputs.devstudio_webhook_token }}
       run: |
+        echo "DEBUG: DEVSTUDIO_API_URL=${DEVSTUDIO_API_URL}"
+        echo "DEBUG: DEVSTUDIO_WEBHOOK_TOKEN=${DEVSTUDIO_WEBHOOK_TOKEN}"
+
         MAX_ATTEMPTS=3
         ATTEMPT=0
         SUCCESS=false
@@ -101,14 +104,18 @@ runs:
             -H "Authorization: Bearer ${DEVSTUDIO_WEBHOOK_TOKEN}" \
             -H "Content-Type: application/json")
 
-          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+          BODY_SIZE=$(wc -c < /tmp/bedrock-creds.json 2>/dev/null || echo 0)
+          echo "HTTP ${HTTP_STATUS} — response body: ${BODY_SIZE} bytes"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ] && [ "$BODY_SIZE" -gt 0 ]; then
             SUCCESS=true
             break
           fi
 
-          echo "::error::Bedrock credentials request failed — HTTP ${HTTP_STATUS}"
-          echo "Response body:"
+          echo "::error::Bedrock credentials request failed — HTTP ${HTTP_STATUS}, body ${BODY_SIZE} bytes"
+          echo "--- response body ---"
           cat /tmp/bedrock-creds.json || true
+          echo "--- end response ---"
           if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
             echo "Retrying in 2s..."
             sleep 2
@@ -120,22 +127,25 @@ runs:
           exit 1
         fi
 
-        # Validate all required fields are present in the response
-        python3 - <<'PYEOF'
+        # Extract and validate fields with a single python3 invocation
+        CREDS=$(python3 -c "
         import sys, json
-        with open('/tmp/bedrock-creds.json') as f:
-            data = json.load(f)
+        data = json.load(open('/tmp/bedrock-creds.json'))
         required = ['accessKeyId', 'secretAccessKey', 'sessionToken']
         missing = [k for k in required if not data.get(k)]
         if missing:
-            print(f"::error::Bedrock credentials response missing fields: {missing}", file=sys.stderr)
+            print('::error::Bedrock credentials response missing fields: ' + str(missing), file=sys.stderr)
             sys.exit(1)
-        print(f"Credentials fetched (keyId: {data['accessKeyId'][:8]}...)")
-        PYEOF
+        print(data['accessKeyId'])
+        print(data['secretAccessKey'])
+        print(data['sessionToken'])
+        ")
 
-        KEY_ID=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['accessKeyId'])")
-        SECRET=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['secretAccessKey'])")
-        TOKEN=$(python3 -c "import json; d=json.load(open('/tmp/bedrock-creds.json')); print(d['sessionToken'])")
+        KEY_ID=$(echo "$CREDS" | sed -n '1p')
+        SECRET=$(echo "$CREDS"  | sed -n '2p')
+        TOKEN=$(echo "$CREDS"   | sed -n '3p')
+
+        echo "Credentials fetched (keyId: ${KEY_ID:0:8}...)"
 
         echo "::add-mask::${SECRET}"
         echo "::add-mask::${TOKEN}"
