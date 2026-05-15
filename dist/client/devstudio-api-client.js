@@ -60,18 +60,23 @@ class DevStudioApiClient {
     async get(path) {
         if (!this.baseUrl)
             throw new Error(`DEVSTUDIO_API_URL not set — cannot GET ${path}`);
-        const res = await fetch(`${this.baseUrl}${path}`, {
+        const url = `${this.baseUrl}${path}`;
+        const res = await fetch(url, {
             method: 'GET',
             headers: { 'Authorization': this.authHeader },
         });
-        let responseText = '';
+        const responseText = await res.text();
+        process.stderr.write(`[api-client] GET ${url} → HTTP ${res.status}\n`);
+        process.stderr.write(`[api-client] response body (first 500 chars): ${responseText.slice(0, 500)}\n`);
         if (!res.ok) {
-            responseText = await res.text();
             throw new Error(`GET ${path} → HTTP ${res.status}: ${responseText}`);
         }
-        console.log(`[api-client] GET ${path}`);
-        console.log(responseText);
-        return res.json();
+        try {
+            return JSON.parse(responseText);
+        }
+        catch (err) {
+            throw new Error(`GET ${path} → HTTP ${res.status} but body is not JSON: ${responseText.slice(0, 200)}`);
+        }
     }
 }
 exports.DevStudioApiClient = DevStudioApiClient;
