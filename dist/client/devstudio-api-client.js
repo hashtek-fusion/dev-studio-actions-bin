@@ -10,19 +10,19 @@ class DevStudioApiClient {
         this.webhookToken = webhookToken;
     }
     async postEvent(runId, event) {
-        await this.post(`/api/v1/runs/${runId}/events`, event);
+        await this.post(`/runs/${runId}/events`, event);
     }
     async updateStatus(runId, status) {
-        await this.post(`/api/v1/runs/${runId}/status`, { status });
+        await this.post(`/runs/${runId}/status`, { status });
     }
     async savePlanCheckpoint(runId, payload) {
-        await this.post(`/api/v1/runs/${runId}/plan-checkpoint`, payload);
+        await this.post(`/runs/${runId}/plan-checkpoint`, payload);
     }
     async getPlanCheckpoint(runId) {
-        return this.get(`/api/v1/runs/${runId}/plan-checkpoint`);
+        return this.get(`/runs/${runId}/plan-checkpoint`);
     }
     async saveSummary(runId, payload) {
-        await this.post(`/api/v1/runs/${runId}/summary`, payload);
+        await this.post(`/runs/${runId}/summary`, payload);
     }
     get authHeader() {
         return `Bearer ${this.webhookToken}`;
