@@ -2,6 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ORCHESTRATOR_SYSTEM_PROMPT = exports.REVIEWER_SYSTEM_PROMPT = exports.IMPLEMENTER_SYSTEM_PROMPT = exports.EXPLORER_SYSTEM_PROMPT = exports.ROLE_MAX_TURNS = exports.ROLE_NOT_ALLOWED_TOOLS = exports.ROLE_ALLOWED_TOOLS = void 0;
 exports.computeCostUsd = computeCostUsd;
+const CLI_META_TOOLS = [
+    'ExitPlanMode', 'EnterPlanMode',
+    'TodoWrite', 'TodoRead',
+    'ScheduleWakeup',
+    'WebSearch', 'WebFetch',
+    'Task',
+];
 exports.ROLE_ALLOWED_TOOLS = {
     explorer: ['Read', 'Glob', 'Grep'],
     implementer: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
@@ -9,10 +16,10 @@ exports.ROLE_ALLOWED_TOOLS = {
     orchestrator: ['Read'],
 };
 exports.ROLE_NOT_ALLOWED_TOOLS = {
-    explorer: ['Task', 'Edit', 'Write', 'Bash', 'ExitPlanMode', 'EnterPlanMode'],
-    implementer: ['Task', 'ExitPlanMode', 'EnterPlanMode'],
-    reviewer: ['Task', 'Edit', 'Write', 'ExitPlanMode', 'EnterPlanMode'],
-    orchestrator: ['Task', 'Bash', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'ExitPlanMode', 'EnterPlanMode'],
+    explorer: [...CLI_META_TOOLS, 'Edit', 'Write', 'Bash'],
+    implementer: [...CLI_META_TOOLS],
+    reviewer: [...CLI_META_TOOLS, 'Edit', 'Write'],
+    orchestrator: [...CLI_META_TOOLS, 'Bash', 'Write', 'Edit', 'Glob', 'Grep', 'Read'],
 };
 exports.ROLE_MAX_TURNS = {
     explorer: 100,
