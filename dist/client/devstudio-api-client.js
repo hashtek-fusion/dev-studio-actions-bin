@@ -64,10 +64,12 @@ class DevStudioApiClient {
             method: 'GET',
             headers: { 'Authorization': this.authHeader },
         });
+        let responseText = '';
         if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`GET ${path} → HTTP ${res.status}: ${text}`);
+            responseText = await res.text();
+            throw new Error(`GET ${path} → HTTP ${res.status}: ${responseText}`);
         }
+        console.log(`[api-client] GET ${path}`, responseText);
         return res.json();
     }
 }
