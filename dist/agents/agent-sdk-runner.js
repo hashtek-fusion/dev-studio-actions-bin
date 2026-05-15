@@ -102,6 +102,7 @@ async function runWithAgentSdk(prompt, options) {
             },
         })) {
             const msg = message;
+            process.stderr.write(`[SDK_MSG role=${role} type=${msg['type']}] ${JSON.stringify(msg)}\n`);
             if (msg['type'] === 'assistant') {
                 const msgObj = msg['message'];
                 const content = (msgObj?.['content'] ?? msg['content']);

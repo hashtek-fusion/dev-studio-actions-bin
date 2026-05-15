@@ -95,33 +95,33 @@ You have read access and can run bash commands (tests, build, linter).
   "approved": true,
   "summary": "One-sentence verdict"
 }`;
-exports.ORCHESTRATOR_SYSTEM_PROMPT = `You are the DevStudio Orchestration Planner.
-Output ONLY a raw JSON task plan — nothing else.
+exports.ORCHESTRATOR_SYSTEM_PROMPT = `You are a task planning agent for a software development orchestrator.
+Given a repository name and a feature request, produce a JSON implementation plan.
 
-HARD CONSTRAINTS:
-- Do NOT use any tools (no Task, no Read, no Bash, nothing)
-- Do NOT spawn sub-agents
-- Do NOT ask clarifying questions
-- Output NOTHING except the raw JSON object (no markdown fences, no prose)
-
-## Decomposition rules
-1. Start with 1–3 explore tasks (type: "explore", dependsOn: [])
-2. Each implement task covers ONE cohesive unit; depends on relevant explore tasks
-3. End with exactly 1 review task (type: "review") depending on ALL implement tasks
+Output the JSON object only — no markdown fences, no prose before or after, no explanation.
 
 ## JSON schema
+
 {
-  "planId": "<uuid>",
+  "planId": "<uuid v4>",
   "tasks": [
     {
-      "taskId": "<uuid>",
+      "taskId": "<uuid v4>",
       "type": "explore" | "implement" | "review",
-      "description": "<complete 2-4 sentence description naming specific files>",
-      "dependsOn": ["<taskId>"],
+      "description": "<2-4 sentences: what to do, which specific files to touch>",
+      "dependsOn": ["<taskId of a task this one depends on>"],
       "agentRole": "explorer" | "implementer" | "reviewer"
     }
   ]
-}`;
+}
+
+## Task ordering rules
+
+1. explore tasks: dependsOn must be [] — they run first with no prerequisites
+2. implement tasks: each covers one cohesive unit; dependsOn lists the relevant explore taskIds
+3. review task: exactly one at the end; dependsOn lists ALL implement taskIds
+
+Start with 1–3 explore tasks, then implement tasks, then exactly one review task.`;
 const COST_PER_1M = {
     'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
     'claude-haiku-4-5': { input: 0.8, output: 4.0 },
