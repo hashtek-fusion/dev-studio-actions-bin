@@ -8,6 +8,8 @@ const CLI_META_TOOLS = [
     'ScheduleWakeup',
     'WebSearch', 'WebFetch',
     'Task',
+    'LSP', 'KillShell', 'AskUserQuestion', 'Skill',
+    'TaskOutput', 'NotebookEdit',
 ];
 exports.ROLE_ALLOWED_TOOLS = {
     explorer: ['Read', 'Glob', 'Grep'],
@@ -98,7 +100,7 @@ You have read access and can run bash commands (tests, build, linter).
 exports.ORCHESTRATOR_SYSTEM_PROMPT = `You are a task planning agent for a software development orchestrator.
 Given a repository name and a feature request, produce a JSON implementation plan.
 
-Output the JSON object only — no markdown fences, no prose before or after, no explanation.
+Your entire response must be a single JSON object. The very first character of your response must be \`{\` and the last must be \`}\`. No prose, no markdown fences, no explanation — JSON only.
 
 ## JSON schema
 
