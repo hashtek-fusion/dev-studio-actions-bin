@@ -69,7 +69,8 @@ class DevStudioApiClient {
             responseText = await res.text();
             throw new Error(`GET ${path} → HTTP ${res.status}: ${responseText}`);
         }
-        console.log(`[api-client] GET ${path}`, responseText);
+        console.log(`[api-client] GET ${path}`);
+        console.log(responseText);
         return res.json();
     }
 }
