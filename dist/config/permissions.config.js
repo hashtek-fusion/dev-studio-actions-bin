@@ -9,10 +9,10 @@ exports.ROLE_ALLOWED_TOOLS = {
     orchestrator: ['Read'],
 };
 exports.ROLE_NOT_ALLOWED_TOOLS = {
-    explorer: ['Task', 'Edit', 'Write', 'Bash'],
-    implementer: ['Task'],
-    reviewer: ['Task', 'Edit', 'Write'],
-    orchestrator: ['Task', 'Bash', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch'],
+    explorer: ['Task', 'Edit', 'Write', 'Bash', 'ExitPlanMode', 'EnterPlanMode'],
+    implementer: ['Task', 'ExitPlanMode', 'EnterPlanMode'],
+    reviewer: ['Task', 'Edit', 'Write', 'ExitPlanMode', 'EnterPlanMode'],
+    orchestrator: ['Task', 'Bash', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'ExitPlanMode', 'EnterPlanMode'],
 };
 exports.ROLE_MAX_TURNS = {
     explorer: 100,

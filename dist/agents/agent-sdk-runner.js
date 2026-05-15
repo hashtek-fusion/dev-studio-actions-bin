@@ -104,7 +104,6 @@ async function runWithAgentSdk(prompt, options) {
             const msg = message;
             if (msg['type'] === 'assistant') {
                 const msgObj = msg['message'];
-                console.log(JSON.stringify(msgObj, null, 2));
                 const content = (msgObj?.['content'] ?? msg['content']);
                 if (Array.isArray(content)) {
                     const text = content
