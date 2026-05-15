@@ -18,6 +18,7 @@ class OrchestratorAgent {
     async plan() {
         (0, ndjson_emitter_1.log)('Planning tasks...');
         const model = process.env.ANTHROPIC_DEFAULT_SONNET_MODEL ?? 'us.anthropic.claude-sonnet-4-6';
+        (0, ndjson_emitter_1.log)(this.prompt);
         const result = await (0, agent_sdk_runner_1.runWithAgentSdk)(`Repository: ${this.repoFullName}\n\nFeature to implement:\n${this.prompt}`, {
             runId: this.runId,
             taskId: 'plan',

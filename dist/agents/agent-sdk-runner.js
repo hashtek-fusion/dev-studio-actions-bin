@@ -103,7 +103,8 @@ async function runWithAgentSdk(prompt, options) {
         })) {
             const msg = message;
             if (msg['type'] === 'assistant') {
-                const content = msg['content'];
+                const msgObj = msg['message'];
+                const content = (msgObj?.['content'] ?? msg['content']);
                 if (Array.isArray(content)) {
                     const text = content
                         .filter(b => b.type === 'text' && typeof b.text === 'string')

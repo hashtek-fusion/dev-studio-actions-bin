@@ -70,8 +70,8 @@ runs:
         echo "Claude CLI: $(which claude 2>/dev/null || echo 'not found in PATH')"
 
     # ── Install orchestrator runtime dependencies ────────────────────────────────
-    # The dist/ directory is precompiled and checked in to this repo.
-    # We only need to install node_modules — no clone or build step required.
+    # dist/ is built and published to dev-studio-actions-bin via deploy-and-publish.yml.
+    # We only need to install node_modules here — no build step required.
     - name: Install orchestrator dependencies
       shell: bash
       working-directory: ${{ github.action_path }}
