@@ -18,7 +18,7 @@ exports.ROLE_MAX_TURNS = {
     explorer: 100,
     implementer: 100,
     reviewer: 30,
-    orchestrator: 2,
+    orchestrator: 1,
 };
 exports.EXPLORER_SYSTEM_PROMPT = `You are a codebase explorer with READ-ONLY access.
 Produce a structured report that gives the implementer everything they need.
