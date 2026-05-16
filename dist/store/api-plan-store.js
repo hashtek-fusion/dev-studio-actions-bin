@@ -7,20 +7,25 @@ class ApiPlanStore {
     }
     async saveCheckpoint(runId, plan, planVersion) {
         await this.apiClient.savePlanCheckpoint(runId, {
-            planId: plan.planId,
+            plan: {
+                planId: plan.planId,
+                tasks: plan.tasks,
+                createdAt: plan.createdAt,
+            },
             planVersion,
-            tasks: plan.tasks,
-            createdAt: plan.createdAt,
-            savedAt: new Date().toISOString(),
         });
     }
     async loadCheckpoint(runId) {
         const raw = await this.apiClient.getPlanCheckpoint(runId);
+        const planData = raw['plan'];
+        if (!planData) {
+            throw new Error(`Plan checkpoint for run ${runId} is missing plan data — was it saved correctly?`);
+        }
         return {
-            planId: raw['planId'],
+            planId: planData['planId'],
             runId,
-            tasks: raw['tasks'],
-            createdAt: raw['createdAt'],
+            tasks: planData['tasks'],
+            createdAt: planData['createdAt'],
         };
     }
 }
